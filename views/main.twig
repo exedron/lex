@@ -1,0 +1,175 @@
+<html>
+<head>
+    <link rel="stylesheet" href="/vendor/bootstrap-4.0.0-alpha.6-dist/css/bootstrap.min.css" />
+    <script type="application/javascript" src="/vendor/jquery-3.2.1/jquery-3.2.1.min.js"></script>
+    <script type="application/javascript" src="/vendor/vue-2.5.2/vue-2.5.2.js"></script>
+    <style type="text/css">
+        .container {
+            margin-top: 50px;
+        }
+
+        .table-routes {
+            font-size: 14px;
+        }
+
+        .table-routes tr:first-child td, .table-route-attributes tr:first-child td {
+            border-top: 0px;
+        }
+
+        .route-detail-item {
+            margin-bottom: 15px;
+        }
+
+        .route-detail-item h5 {
+            padding: 10px 0 10px 0;
+            border-bottom: 1px solid #eeeeee;
+        }
+
+        .detail-item {
+            background: white;
+            padding: 15px;
+        }
+        
+        body {
+            background: #e7e7e7;
+        }
+    </style>
+    <script type="application/javascript">
+        var app;
+
+        var lex = new function()
+        {
+            this.apiBaseUrl = '{{ url.route('@main.apis.base') }}';
+
+            this.api = new function(url)
+            {
+                this.call = function(method, path)
+                {
+                    return $.ajax({type: method, url: url + '/' + path, dataType: 'JSON'});
+                };
+            }(this.apiBaseUrl);
+        };
+
+        $(document).ready(function() {
+            var data = {
+                with_group: false,
+                routes: [],
+                all_routes: [],
+                route: null
+            };
+
+            var methods = new function() {
+                this.highlight = function(name) {
+                    $.each(data.routes, function(i, route) {
+                        if(route.name == name)
+                            data.route = route;
+                    })
+                };
+
+                this.refresh = function() {
+                    return lex.api.call('GET', 'all-routes').done(function(response) {
+                        data.all_routes = data.routes = response.data;
+                    });
+                };
+
+                this.search = function(event) {
+                    var keywords = event.target.value;
+
+                    if(!keywords) {
+                        data.routes = data.all_routes;
+                        return;
+                    }
+
+                    var routes = [];
+
+                    $.each(data.all_routes, function(i, route) {
+                        if(!data.with_group && route.is_group)
+                            return;
+
+                        if(route.name.indexOf(keywords) !== -1)
+                            routes.push(route);
+                        else if(route.path.indexOf(keywords) !== -1)
+                            routes.push(route);
+                        else if(keywords.indexOf('#') === 0 && route.tag && route.tag.indexOf(keywords.replace('#', '')) !== -1)
+                            routes.push(route);
+                    });
+
+                    data.routes = routes;
+                };
+            };
+
+            app = new Vue({
+                el: '.app',
+                delimiters: ['[[', ']]'],
+                data: data,
+                methods: methods
+            });
+
+            app.refresh();
+        });
+    </script>
+</head>
+<body>
+<div class="app">
+    <div class="container" style="width: 70%;">
+        <div class="row">
+            <div class="col-sm-7">
+                <div style="background: white; padding: 15px;">
+                    <div style="margin-bottom: 15px;">
+                        <input type="text" style="border: 0px; border-bottom: 1px solid #e8e8e8" class="form-control" v-on:keyup="search" />
+                    </div>
+                    <div style="margin-bottom: 20px; display: none;">
+                        <ul class="nav nav-tabs">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#">List View</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">Graph</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <table class="table table-sm table-routes">
+                        <tr v-for="route in routes" v-on:click="highlight(route.name)" style="cursor: pointer;">
+                            <template v-if="with_group || (!with_group && route.is_executable)">
+                                <td>
+                                    <strong>[[ route.method ]]</strong> <pre style="display: inline;">[[ route.path ]]</pre>
+                                    <div v-if="!route.is_group"><pre style="opacity: 0.5; display: inline;">[[ route.action ]]</pre></div>
+                                </td>
+                                <td style="text-align: right;">
+                                    <span v-if="route.is_group">GROUP </span>
+                                    [[ route.name ]]
+                                    <span v-if="route.tag">(#[[ route.tag ]])</span>
+                                </td>
+                            </template>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div class="col-sm-5">
+                <div v-if="route" class="detail-item">
+                    <div class="route-detail-item">
+                        <h5>Route Details</h5>
+                        <div><strong>[[ route.name ]] <span v-if="route.tag">(#[[ route.tag ]])</span></strong></div>
+                        <div>
+                            <strong>[[ route.method ]]</strong> <pre style="display: inline;">[[ route.path ]]</pre>
+                        </div>
+                        <div style="opacity: 0.5;">
+                            <pre style="display: inline;">[[ route.action ]]</pre>
+                        </div>
+                    </div>
+                    <div v-if="route.has_attributes" class="route-detail-item">
+                        <h5>Attributes</h5>
+                        <table class="table table-sm table-route-attributes">
+                            <tr v-for="(value, key, index) in route.attributes">
+                                <td style="width: 150px;"><pre style="font-weight: bold; display: inline;">[[ key ]]</pre></td>
+                                <td><pre style="display: inline;">[[ value ]]</pre></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

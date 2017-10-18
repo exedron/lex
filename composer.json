@@ -1,0 +1,7 @@
+{
+  "require": {
+    "rosengate/exedra": "dev-master",
+    "exedron/routeller": "dev-master",
+    "twig/twig": "~1.0"
+  }
+}
